@@ -42,7 +42,9 @@ The client [GoDoc](https://godoc.org/github.com/dgraph-io/dgraph/client) has spe
 
 Larger examples can be found [here](https://github.com/dgraph-io/dgraph/tree/master/wiki/resources/examples/goclient).
 
-The app [dgraph-live-loader](https://github.com/dgraph-io/dgraph/tree/master/cmd/dgraph-live-loader) uses the client interface to batch concurrent mutations.
+The [dgraph live
+loader](https://github.com/dgraph-io/dgraph/tree/master/dgraph/cmd/live/) uses
+the client interface to batch concurrent mutations.
 
 ### Java
 
