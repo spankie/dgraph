@@ -84,7 +84,7 @@ func addEdge(t *testing.T, attr string, src uint64, edge *intern.DirectedEdge) {
 	}()
 }
 
-func makeFacets(facetKVs map[string]string) (fs []*api.Facet, err error) {
+func makeFacets(facetKVs map[string]string) (fs []*intern.Facet, err error) {
 	if len(facetKVs) == 0 {
 		return nil, nil
 	}

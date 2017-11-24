@@ -59,7 +59,7 @@ func convertTo(from *intern.TaskValue) (types.Val, error) {
 	}
 	va, err := types.Convert(vh, vh.Tid)
 	if err != nil {
-		return vh, x.Wrapf(err, "Fail to convert from api.Value to types.Val")
+		return vh, x.Wrapf(err, "Fail to convert from intern.Value to types.Val")
 	}
 	return va, err
 }

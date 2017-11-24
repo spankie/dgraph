@@ -33,7 +33,6 @@ import (
 
 	"github.com/dgraph-io/dgraph/gql"
 	"github.com/dgraph-io/dgraph/posting"
-	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/rdf"
 	"github.com/dgraph-io/dgraph/tok"
@@ -225,11 +224,11 @@ func (m *mapper) lookupUid(xid string) uint64 {
 		// Don't store xids for blank nodes.
 		return uid
 	}
-	nq := gql.NQuad{&api.NQuad{
+	nq := gql.NQuad{&intern.NQuad{
 		Subject:   xid,
 		Predicate: "xid",
-		ObjectValue: &api.Value{
-			Val: &api.Value_StrVal{StrVal: xid},
+		ObjectValue: &intern.Value{
+			Val: &intern.Value_StrVal{StrVal: xid},
 		},
 	}}
 	m.processNQuad(nq)

@@ -46,24 +46,24 @@ func TestInsert3Quads(ctx context.Context, c *client.Dgraph) {
 	txn := c.NewTxn()
 
 	mu := &api.Mutation{}
-	quad := &api.NQuad{
+	quad := &intern.NQuad{
 		Subject:     "200",
 		Predicate:   "name",
-		ObjectValue: &api.Value{&api.Value_StrVal{"ok 200"}},
+		ObjectValue: &intern.Value{&intern.Value_StrVal{"ok 200"}},
 	}
-	mu.Set = []*api.NQuad{quad}
+	mu.Set = []*intern.NQuad{quad}
 	_, err := txn.Mutate(ctx, mu)
 	if err != nil {
 		log.Fatalf("Error while running mutation: %v\n", err)
 	}
 
 	mu = &api.Mutation{}
-	quad = &api.NQuad{
+	quad = &intern.NQuad{
 		Subject:     "300",
 		Predicate:   "name",
-		ObjectValue: &api.Value{&api.Value_StrVal{"ok 300"}},
+		ObjectValue: &intern.Value{&intern.Value_StrVal{"ok 300"}},
 	}
-	mu.Set = []*api.NQuad{quad}
+	mu.Set = []*intern.NQuad{quad}
 	// mu.SetNquads = []byte(`<300> <name> "ok 300" .`)
 	_, err = txn.Mutate(ctx, mu)
 	if err != nil {
@@ -71,12 +71,12 @@ func TestInsert3Quads(ctx context.Context, c *client.Dgraph) {
 	}
 
 	mu = &api.Mutation{}
-	quad = &api.NQuad{
+	quad = &intern.NQuad{
 		Subject:     "400",
 		Predicate:   "name",
-		ObjectValue: &api.Value{&api.Value_StrVal{"ok 400"}},
+		ObjectValue: &intern.Value{&intern.Value_StrVal{"ok 400"}},
 	}
-	mu.Set = []*api.NQuad{quad}
+	mu.Set = []*intern.NQuad{quad}
 	// mu.SetNquads = []byte(`<400> <name> "ok 400" .`)
 	_, err = txn.Mutate(ctx, mu)
 	if err != nil {

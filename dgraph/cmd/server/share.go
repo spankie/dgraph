@@ -33,15 +33,11 @@ import (
 )
 
 // NewSharedQueryNQuads returns nquads with query and hash.
-func NewSharedQueryNQuads(query []byte) []*api.NQuad {
-	val := func(s string) *api.Value {
-		return &api.Value{&api.Value_DefaultVal{s}}
-	}
-	qHash := fmt.Sprintf("%x", sha256.Sum256(query))
-	return []*api.NQuad{
-		{Subject: "_:share", Predicate: "_share_", ObjectValue: val(string(query))},
-		{Subject: "_:share", Predicate: "_share_hash_", ObjectValue: val(qHash)},
-	}
+func NewSharedQueryNQuads(query []byte) string {
+	return fmt.Sprintf(`
+		"_:share <_share_> %q .
+		"_:share <_share_hash> "%x" .
+	`, string(query), sha256.Sum256(query))
 }
 
 // shareHandler allows to share a query between users.
@@ -66,7 +62,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mu := &api.Mutation{
-		Set:       NewSharedQueryNQuads(rawQuery),
+		SetNquads: []byte(NewSharedQueryNQuads(rawQuery)),
 		CommitNow: true,
 	}
 	resp, err := (&edgraph.Server{}).Mutate(context.Background(), mu)

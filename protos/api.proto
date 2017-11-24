@@ -56,8 +56,6 @@ message Mutation {
 	bytes set_nquads = 3;
 	bytes del_nquads = 4;
 
-	repeated NQuad set = 10;
-	repeated NQuad del = 11;
 	uint64 start_ts = 13;
 	bool commit_now = 14;
 }
@@ -102,48 +100,6 @@ message Latency {
 	uint64 parsing_ns = 1;
 	uint64 processing_ns = 2;
 	uint64 encoding_ns = 3;
-}
-
-message NQuad {
-	string subject = 1;
-	string predicate = 2;
-	string object_id = 3;
-	Value object_value = 4;
-	string label = 5;
-	string lang = 6;
-	repeated Facet facets = 7;
-}
-
-message Value {
-	oneof val {
-		string default_val = 1;
-		bytes bytes_val = 2;
-		int64 int_val = 3;
-		bool bool_val = 4;
-		string str_val = 5;
-		double double_val = 6;
-		bytes geo_val = 7;  // Geo data in WKB format
-		bytes date_val = 8;
-		bytes datetime_val = 9;
-		string password_val = 10;
-		uint64 uid_val=11;
-	}
-}
-
-message Facet {
-	enum ValType {
-		STRING = 0;
-		INT = 1;
-		FLOAT = 2;
-		BOOL = 3;
-		DATETIME = 4;
-	}
-
-	string key = 1;
-	bytes value = 2;
-	ValType val_type = 3;
-	repeated string tokens = 4; // tokens of value.
-	string alias = 5; // not stored, only used for query.
 }
 
 message SchemaNode {

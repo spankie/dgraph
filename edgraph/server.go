@@ -210,10 +210,10 @@ func (s *Server) Alter(ctx context.Context, op *api.Operation) (*api.Payload, er
 		return empty, err
 	}
 	if len(op.DropAttr) > 0 {
-		nq := &api.NQuad{
+		nq := &intern.NQuad{
 			Subject:     x.Star,
 			Predicate:   op.DropAttr,
-			ObjectValue: &api.Value{&api.Value_StrVal{x.Star}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{x.Star}},
 		}
 		wnq := &gql.NQuad{nq}
 		edge, err := wnq.ToDeletePredEdge()
@@ -259,7 +259,6 @@ func (s *Server) Mutate(ctx context.Context, mu *api.Mutation) (resp *api.Assign
 	}
 	emptyMutation :=
 		len(mu.GetSetJson()) == 0 && len(mu.GetDeleteJson()) == 0 &&
-			len(mu.Set) == 0 && len(mu.Del) == 0 &&
 			len(mu.SetNquads) == 0 && len(mu.DelNquads) == 0
 	if emptyMutation {
 		return resp, fmt.Errorf("empty mutation")
@@ -269,16 +268,16 @@ func (s *Server) Mutate(ctx context.Context, mu *api.Mutation) (resp *api.Assign
 		tr, ctx = x.NewTrace("GrpcMutate", ctx)
 		defer tr.Finish()
 	}
-	gmu, err := parseMutationObject(mu)
+	setNqs, delNqs, err := parseMutationObject(mu)
 	if err != nil {
 		return resp, err
 	}
-	newUids, err := query.AssignUids(ctx, gmu.Set)
+	newUids, err := query.AssignUids(ctx, setNqs)
 	if err != nil {
 		return resp, err
 	}
 	resp.Uids = query.ConvertUidsToHex(query.StripBlankNode(newUids))
-	edges, err := query.ToInternal(gmu, newUids)
+	edges, err := query.ToInternal(setNqs, delNqs, newUids)
 	if err != nil {
 		return resp, err
 	}
@@ -450,13 +449,13 @@ func isMutationAllowed(ctx context.Context) bool {
 	return true
 }
 
-func parseFacets(m map[string]interface{}, prefix string) ([]*api.Facet, error) {
+func parseFacets(m map[string]interface{}, prefix string) ([]*intern.Facet, error) {
 	// This happens at root.
 	if prefix == "" {
 		return nil, nil
 	}
 
-	var facetsForPred []*api.Facet
+	var facetsForPred []*intern.Facet
 	var fv interface{}
 	for fname, facetVal := range m {
 		if facetVal == nil {
@@ -470,30 +469,30 @@ func parseFacets(m map[string]interface{}, prefix string) ([]*api.Facet, error) 
 			return nil, x.Errorf("Facet key is invalid: %s", fname)
 		}
 		// Prefix includes colon, predicate:
-		f := &api.Facet{Key: fname[len(prefix):]}
+		f := &intern.Facet{Key: fname[len(prefix):]}
 		switch v := facetVal.(type) {
 		case string:
 			if t, err := types.ParseTime(v); err == nil {
-				f.ValType = api.Facet_DATETIME
+				f.ValType = intern.Facet_DATETIME
 				fv = t
 			} else {
-				f.ValType = api.Facet_STRING
+				f.ValType = intern.Facet_STRING
 				fv = v
 			}
 		case float64:
 			// Could be int too, but we just store it as float.
 			fv = v
-			f.ValType = api.Facet_FLOAT
+			f.ValType = intern.Facet_FLOAT
 		case bool:
 			fv = v
-			f.ValType = api.Facet_BOOL
+			f.ValType = intern.Facet_BOOL
 		default:
 			return nil, x.Errorf("Facet value for key: %s can only be string/float64/bool.",
 				fname)
 		}
 
 		// convert facet val interface{} to binary
-		tid := facets.TypeIDFor(&api.Facet{ValType: f.ValType})
+		tid := facets.TypeIDFor(&intern.Facet{ValType: f.ValType})
 		fVal := &types.Val{Tid: types.BinaryID}
 		if err := types.Marshal(types.Val{Tid: tid, Value: fv}, fVal); err != nil {
 			return nil, err
@@ -512,12 +511,12 @@ func parseFacets(m map[string]interface{}, prefix string) ([]*api.Facet, error) 
 
 // This is the response for a map[string]interface{} i.e. a struct.
 type mapResponse struct {
-	nquads []*api.NQuad // nquads at this level including the children.
-	uid    string       // uid retrieved or allocated for the node.
-	fcts   []*api.Facet // facets on the edge connecting this node to the source if any.
+	nquads []*intern.NQuad // nquads at this level including the children.
+	uid    string          // uid retrieved or allocated for the node.
+	fcts   []*intern.Facet // facets on the edge connecting this node to the source if any.
 }
 
-func handleBasicType(k string, v interface{}, op int, nq *api.NQuad) error {
+func handleBasicType(k string, v interface{}, op int, nq *intern.NQuad) error {
 	switch v.(type) {
 	case string:
 		predWithLang := strings.SplitN(k, "@", 2)
@@ -528,25 +527,25 @@ func handleBasicType(k string, v interface{}, op int, nq *api.NQuad) error {
 
 		// Default value is considered as S P * deletion.
 		if v == "" && op == delete {
-			nq.ObjectValue = &api.Value{&api.Value_DefaultVal{x.Star}}
+			nq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{x.Star}}
 			return nil
 		}
 
-		nq.ObjectValue = &api.Value{&api.Value_StrVal{v.(string)}}
+		nq.ObjectValue = &intern.Value{&intern.Value_StrVal{v.(string)}}
 	case float64:
 		if v == 0 && op == delete {
-			nq.ObjectValue = &api.Value{&api.Value_DefaultVal{x.Star}}
+			nq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{x.Star}}
 			return nil
 		}
 
-		nq.ObjectValue = &api.Value{&api.Value_DoubleVal{v.(float64)}}
+		nq.ObjectValue = &intern.Value{&intern.Value_DoubleVal{v.(float64)}}
 	case bool:
 		if v == false && op == delete {
-			nq.ObjectValue = &api.Value{&api.Value_DefaultVal{x.Star}}
+			nq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{x.Star}}
 			return nil
 		}
 
-		nq.ObjectValue = &api.Value{&api.Value_BoolVal{v.(bool)}}
+		nq.ObjectValue = &intern.Value{&intern.Value_BoolVal{v.(bool)}}
 	default:
 		return x.Errorf("Unexpected type for val for attr: %s while converting to nquad", k)
 	}
@@ -557,15 +556,15 @@ func handleBasicType(k string, v interface{}, op int, nq *api.NQuad) error {
 func checkForDeletion(mr *mapResponse, m map[string]interface{}, op int) {
 	// Since uid is the only key, this must be S * * deletion.
 	if op == delete && len(mr.uid) > 0 && len(m) == 1 {
-		mr.nquads = append(mr.nquads, &api.NQuad{
+		mr.nquads = append(mr.nquads, &intern.NQuad{
 			Subject:     mr.uid,
 			Predicate:   x.Star,
-			ObjectValue: &api.Value{&api.Value_DefaultVal{x.Star}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{x.Star}},
 		})
 	}
 }
 
-func tryParseAsGeo(b []byte, nq *api.NQuad) (bool, error) {
+func tryParseAsGeo(b []byte, nq *intern.NQuad) (bool, error) {
 	var g geom.T
 	err := geojson.Unmarshal(b, &g)
 	if err == nil {
@@ -622,10 +621,10 @@ func mapToNquads(m map[string]interface{}, idx *int, op int, parentPred string) 
 		if op == delete {
 			// This corresponds to edge deletion.
 			if v == nil {
-				mr.nquads = append(mr.nquads, &api.NQuad{
+				mr.nquads = append(mr.nquads, &intern.NQuad{
 					Subject:     mr.uid,
 					Predicate:   pred,
-					ObjectValue: &api.Value{&api.Value_DefaultVal{x.Star}},
+					ObjectValue: &intern.Value{&intern.Value_DefaultVal{x.Star}},
 				})
 				continue
 			}
@@ -639,7 +638,7 @@ func mapToNquads(m map[string]interface{}, idx *int, op int, parentPred string) 
 			return mr, err
 		}
 
-		nq := api.NQuad{
+		nq := intern.NQuad{
 			Subject:   mr.uid,
 			Predicate: pred,
 			Facets:    fts,
@@ -647,7 +646,7 @@ func mapToNquads(m map[string]interface{}, idx *int, op int, parentPred string) 
 
 		if v == nil {
 			if op == delete {
-				nq.ObjectValue = &api.Value{&api.Value_DefaultVal{x.Star}}
+				nq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{x.Star}}
 				mr.nquads = append(mr.nquads, &nq)
 			}
 			continue
@@ -697,7 +696,7 @@ func mapToNquads(m map[string]interface{}, idx *int, op int, parentPred string) 
 			mr.nquads = append(mr.nquads, cr.nquads...)
 		case []interface{}:
 			for _, item := range v.([]interface{}) {
-				nq := api.NQuad{
+				nq := intern.NQuad{
 					Subject:   mr.uid,
 					Predicate: pred,
 				}
@@ -738,7 +737,7 @@ const (
 	delete
 )
 
-func nquadsFromJson(b []byte, op int) ([]*api.NQuad, error) {
+func nquadsFromJson(b []byte, op int) ([]*intern.NQuad, error) {
 	ms := make(map[string]interface{})
 	var list []interface{}
 	if err := json.Unmarshal(b, &ms); err != nil {
@@ -753,7 +752,7 @@ func nquadsFromJson(b []byte, op int) ([]*api.NQuad, error) {
 	}
 
 	var idx int
-	var nquads []*api.NQuad
+	var nquads []*intern.NQuad
 	if len(list) > 0 {
 		for _, obj := range list {
 			if _, ok := obj.(map[string]interface{}); !ok {
@@ -774,8 +773,8 @@ func nquadsFromJson(b []byte, op int) ([]*api.NQuad, error) {
 	return mr.nquads, err
 }
 
-func parseNQuads(b []byte, op int) ([]*api.NQuad, error) {
-	var nqs []*api.NQuad
+func parseNQuads(b []byte, op int) ([]*intern.NQuad, error) {
+	var nqs []*intern.NQuad
 	for _, line := range bytes.Split(b, []byte{'\n'}) {
 		line = bytes.TrimSpace(line)
 		nq, err := rdf.Parse(string(line))
@@ -790,55 +789,51 @@ func parseNQuads(b []byte, op int) ([]*api.NQuad, error) {
 	return nqs, nil
 }
 
-func parseMutationObject(mu *api.Mutation) (*gql.Mutation, error) {
-	res := &gql.Mutation{}
+func parseMutationObject(mu *api.Mutation) (sets, dels []*intern.NQuad, err error) {
 	if len(mu.SetJson) > 0 {
 		nqs, err := nquadsFromJson(mu.SetJson, set)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		res.Set = append(res.Set, nqs...)
+		sets = append(sets, nqs...)
 	}
 	if len(mu.DeleteJson) > 0 {
 		nqs, err := nquadsFromJson(mu.DeleteJson, delete)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		res.Del = append(res.Del, nqs...)
+		dels = append(dels, nqs...)
 	}
 	if len(mu.SetNquads) > 0 {
 		nqs, err := parseNQuads(mu.SetNquads, set)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		res.Set = append(res.Set, nqs...)
+		sets = append(sets, nqs...)
 	}
 	if len(mu.DelNquads) > 0 {
 		nqs, err := parseNQuads(mu.DelNquads, delete)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		res.Del = append(res.Del, nqs...)
+		dels = append(dels, nqs...)
 	}
-	res.Set = append(res.Set, mu.Set...)
-	res.Del = append(res.Del, mu.Del...)
-
-	return res, validWildcards(res.Set, res.Del)
+	return sets, dels, validWildcards(sets, dels)
 }
 
-func validWildcards(set, del []*api.NQuad) error {
-	for _, nq := range set {
+func validWildcards(sets, dels []*intern.NQuad) error {
+	for _, nq := range sets {
 		var ostar bool
-		if o, ok := nq.ObjectValue.GetVal().(*api.Value_DefaultVal); ok {
+		if o, ok := nq.ObjectValue.GetVal().(*intern.Value_DefaultVal); ok {
 			ostar = o.DefaultVal == x.Star
 		}
 		if nq.Subject == x.Star || nq.Predicate == x.Star || ostar {
 			return x.Errorf("Cannot use star in set n-quad: %+v", nq)
 		}
 	}
-	for _, nq := range del {
+	for _, nq := range dels {
 		var ostar bool
-		if o, ok := nq.ObjectValue.GetVal().(*api.Value_DefaultVal); ok {
+		if o, ok := nq.ObjectValue.GetVal().(*intern.Value_DefaultVal); ok {
 			ostar = o.DefaultVal == x.Star
 		}
 		if nq.Subject == x.Star || (nq.Predicate == x.Star && !ostar) {

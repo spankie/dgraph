@@ -20,22 +20,23 @@ package rdf
 import (
 	"testing"
 
-	"github.com/dgraph-io/dgraph/protos/api"
+	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/types/facets"
 	"github.com/dgraph-io/dgraph/x"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testNQuads = []struct {
 	input        string
-	nq           api.NQuad
+	nq           intern.NQuad
 	expectedErr  bool
 	shouldIgnore bool
 }{
 	{
 		input: `<some_subject_id> <predicate> <object_id> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "some_subject_id",
 			Predicate:   "predicate",
 			ObjectId:    "object_id",
@@ -44,7 +45,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: "<some_subject_id>\t<predicate>\t<object_id>\t.",
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "some_subject_id",
 			Predicate:   "predicate",
 			ObjectId:    "object_id",
@@ -53,7 +54,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <predicate> <object_id> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "predicate",
 			ObjectId:    "object_id",
@@ -62,7 +63,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<0x01> <predicate> <object_id> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "0x01",
 			Predicate:   "predicate",
 			ObjectId:    "object_id",
@@ -71,7 +72,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<some_subject_id> <predicate> <0x01> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "some_subject_id",
 			Predicate:   "predicate",
 			ObjectId:    "0x01",
@@ -80,7 +81,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<0x01> <predicate> <0x02> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "0x01",
 			Predicate:   "predicate",
 			ObjectId:    "0x02",
@@ -89,7 +90,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <follows> _:bob0 .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "follows",
 			ObjectId:    "_:bob0",
@@ -98,54 +99,54 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <name> "Alice In Wonderland" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "name",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"Alice In Wonderland"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"Alice In Wonderland"}},
 		},
 	},
 	{
 		input: `_:alice <name> "Alice In Wonderland"@en-0 .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "name",
 			ObjectId:    "",
 			Lang:        "en-0",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"Alice In Wonderland"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"Alice In Wonderland"}},
 		},
 	},
 	{
 		input: `_:alice <name> "Alice In Wonderland"^^<xs:string> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "name",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_StrVal{"Alice In Wonderland"}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{"Alice In Wonderland"}},
 		},
 	},
 	{
 		input: `_:alice <age> "013"^^<xs:int> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "age",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_IntVal{13}},
+			ObjectValue: &intern.Value{&intern.Value_IntVal{13}},
 		},
 	},
 	{
 		input: `<http://www.w3.org/2001/sw/RDFCore/nedges/> <http://purl.org/dc/terms/title> "N-Edges"@en-US .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "http://www.w3.org/2001/sw/RDFCore/nedges/",
 			Predicate:   "http://purl.org/dc/terms/title",
 			ObjectId:    "",
 			Lang:        "en-US",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"N-Edges"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"N-Edges"}},
 		},
 	},
 	{
 		input: `_:art <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:art",
 			Predicate:   "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
 			ObjectId:    "http://xmlns.com/foaf/0.1/Person",
@@ -162,7 +163,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: "<_:alice> <knows> <something> .",
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:   "_:alice",
 			Predicate: "knows",
 			ObjectId:  "something",
@@ -171,7 +172,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: "_:alice <knows> <_:something> .",
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:   "_:alice",
 			Predicate: "knows",
 			ObjectId:  "_:something",
@@ -180,21 +181,21 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<alice> <knows> * .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{x.Star}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{x.Star}},
 		},
 		expectedErr: false,
 	},
 	{
 		input: `<alice> * * .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   x.Star,
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{x.Star}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{x.Star}},
 		},
 		expectedErr: false,
 	},
@@ -276,21 +277,21 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <knows> "" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"_nil_"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"_nil_"}},
 		},
 		expectedErr: false,
 	},
 	{
 		input: `_:alice <knows> ""^^<xs:string> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_StrVal{"_nil_"}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{"_nil_"}},
 		},
 		expectedErr: false,
 	},
@@ -300,43 +301,43 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<alice> <knows> "*" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"*"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"*"}},
 		},
 		expectedErr: false,
 	},
 	{
 		input: `_:alice <knows> "stuff"^^<xs:string> <label> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_StrVal{"stuff"}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{"stuff"}},
 			Label:       "label",
 		},
 		expectedErr: false,
 	},
 	{
 		input: `_:alice <knows> "stuff"^^<xs:string> _:label .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_StrVal{"stuff"}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{"stuff"}},
 			Label:       "_:label",
 		},
 		expectedErr: false,
 	},
 	{
 		input: `_:alice <knows> "stuff"^^<xs:string> _:label . # comment`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_StrVal{"stuff"}},
+			ObjectValue: &intern.Value{&intern.Value_StrVal{"stuff"}},
 			Label:       "_:label",
 		},
 		expectedErr: false,
@@ -367,15 +368,15 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <likes> "mov\"enpick" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "likes",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{`mov"enpick`}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{`mov"enpick`}},
 		},
 	},
 	{
 		input: `<\u0021> <\U123abcdE> <\u0024> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:   `\u0021`,
 			Predicate: `\U123abcdE`,
 			ObjectId:  `\u0024`,
@@ -443,7 +444,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:0 <name> <good> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:   "_:0",
 			Predicate: "name",
 			ObjectId:  "good",
@@ -451,7 +452,7 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:0a.b <name> <good> .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:   "_:0a.b",
 			Predicate: "name",
 			ObjectId:  "good",
@@ -467,11 +468,11 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<alice> <lives> "\u0045 wonderland" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   "lives",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{`E wonderland`}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{`E wonderland`}},
 		},
 		expectedErr: false,
 	},
@@ -485,11 +486,11 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<alice> <lives> "\t\b\n\r\f\"\\"@a-b .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   "lives",
 			Lang:        "a-b",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"\t\b\n\r\f\"\\"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"\t\b\n\r\f\"\\"}},
 		},
 	},
 	{
@@ -526,13 +527,13 @@ var testNQuads = []struct {
 	// Edge Facets test.
 	{
 		input: `_:alice <knows> "stuff" _:label (key1="val1",key2=13) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
 			Label:       "_:label",
-			Facets: []*api.Facet{
+			Facets: []*intern.Facet{
 				{"key1",
 					[]byte("val1"),
 					facets.ValTypeForTypeID(facets.StringID),
@@ -550,13 +551,13 @@ var testNQuads = []struct {
 	},
 	{
 		input: `_:alice <knows> "stuff" _:label (key1=,key2=13) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
 			Label:       "_:label",
-			Facets: []*api.Facet{
+			Facets: []*intern.Facet{
 				{"key1",
 					[]byte(""),
 					facets.ValTypeForTypeID(facets.StringID),
@@ -575,12 +576,12 @@ var testNQuads = []struct {
 	// Should parse facets even if there is no label
 	{
 		input: `_:alice <knows> "stuff" (key1=,key2=13) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"key1",
 					[]byte(""),
 					facets.ValTypeForTypeID(facets.StringID),
@@ -599,12 +600,12 @@ var testNQuads = []struct {
 	// Should not fail parsing with unnecessary spaces
 	{
 		input: `_:alice <knows> "stuff" ( key1 = 12 , key2="value2", key3=, key4 ="val4" ) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"key1",
 					[]byte("\014\000\000\000\000\000\000\000"),
 					facets.ValTypeForTypeID(facets.IntID),
@@ -630,12 +631,12 @@ var testNQuads = []struct {
 	// Should parse all types
 	{
 		input: `_:alice <knows> "stuff" (key1=12,key2="value2",key3=1.2,key4=2006-01-02T15:04:05,key5=true,key6=false) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"key1", []byte("\014\000\000\000\000\000\000\000"),
 					facets.ValTypeForTypeID(facets.IntID),
 					nil, ""},
@@ -661,12 +662,12 @@ var testNQuads = []struct {
 	// Should parse dates
 	{
 		input: `_:alice <knows> "stuff" (key1=2002-10-02T15:00:00.05Z, key2=2006-01-02T15:04:05, key3=2006-01-02T00:00:00Z) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"key1", []byte("\001\000\000\000\016\265-\000\360\002\372\360\200\377\377"),
 					facets.ValTypeForTypeID(facets.DateTimeID),
 					nil, ""},
@@ -682,12 +683,12 @@ var testNQuads = []struct {
 	{
 		// integer can be in any valid format.
 		input: `_:alice <knows> "stuff" (k=0x0D) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"k", []byte("\r\000\000\000\000\000\000\000"),
 					facets.ValTypeForTypeID(facets.IntID),
 					nil, ""},
@@ -697,12 +698,12 @@ var testNQuads = []struct {
 	{
 		// That what can not fit in integer fits in float.
 		input: `_:alice <knows> "stuff" (k=111111111111111111888888.23) .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{"k", []byte("\240\250OlX\207\267D"),
 					facets.ValTypeForTypeID(facets.FloatID),
 					nil, ""},
@@ -712,12 +713,12 @@ var testNQuads = []struct {
 	{
 		// Quotes inside facet string values.
 		input: `_:alice <knows> "stuff" (key1="\"hello world\"",key2="LineA\nLineB") .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "_:alice",
 			Predicate:   "knows",
 			ObjectId:    "",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"stuff"}},
-			Facets: []*api.Facet{
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"stuff"}},
+			Facets: []*intern.Facet{
 				{
 					Key:     "key1",
 					Value:   []byte(`"hello world"`),
@@ -785,10 +786,10 @@ var testNQuads = []struct {
 	},
 	{
 		input: `* <pred> * .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     x.Star,
 			Predicate:   "pred",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{x.Star}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{x.Star}},
 		},
 	},
 	{
@@ -801,10 +802,10 @@ var testNQuads = []struct {
 	},
 	{
 		input: `<alice> <lives> "A\tB" .`,
-		nq: api.NQuad{
+		nq: intern.NQuad{
 			Subject:     "alice",
 			Predicate:   "lives",
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"A\tB"}},
+			ObjectValue: &intern.Value{&intern.Value_DefaultVal{"A\tB"}},
 		},
 	},
 	{
@@ -832,4 +833,10 @@ func TestLex(t *testing.T) {
 			assert.Equal(t, test.nq, rnq, "Mismatch for input: %q", test.input)
 		}
 	}
+}
+
+func TestFoo(t *testing.T) {
+	nq, err := Parse(`<_:abc> <hello> "aoeu" .`)
+	require.NoError(t, err)
+	t.Logf("%+v\n", nq)
 }

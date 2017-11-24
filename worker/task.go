@@ -284,7 +284,7 @@ func needsIndex(fnType FuncType) bool {
 
 type result struct {
 	uid    uint64
-	facets []*api.Facet
+	facets []*intern.Facet
 }
 
 type funcArgs struct {
@@ -427,7 +427,7 @@ func handleValuePostings(ctx context.Context, args funcArgs) error {
 		if q.FacetParam != nil {
 			fs, err := pl.Facets(args.q.ReadTs, q.FacetParam, q.Langs)
 			if err != nil {
-				fs = []*api.Facet{}
+				fs = []*intern.Facet{}
 			}
 			out.FacetMatrix = append(out.FacetMatrix,
 				&intern.FacetsList{[]*intern.Facets{{fs}}})
@@ -1251,13 +1251,13 @@ func (w *grpcWorker) ServeTask(ctx context.Context, q *intern.Query) (*intern.Re
 // applyFacetsTree : we return error only when query has some problems.
 // like Or has 3 arguments, argument facet val overflows integer.
 // returns true if postingFacets can be included.
-func applyFacetsTree(postingFacets []*api.Facet, ftree *facetsTree) (bool, error) {
+func applyFacetsTree(postingFacets []*intern.Facet, ftree *facetsTree) (bool, error) {
 	if ftree == nil {
 		return true, nil
 	}
 	if ftree.function != nil {
 		fname := strings.ToLower(ftree.function.name)
-		var fc *api.Facet
+		var fc *intern.Facet
 		for _, fci := range postingFacets {
 			if fci.Key == ftree.function.key {
 				fc = fci

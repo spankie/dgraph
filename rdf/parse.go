@@ -28,7 +28,7 @@ import (
 	"unicode"
 
 	"github.com/dgraph-io/dgraph/lex"
-	"github.com/dgraph-io/dgraph/protos/api"
+	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/types"
 	"github.com/dgraph-io/dgraph/types/facets"
 	"github.com/dgraph-io/dgraph/x"
@@ -57,8 +57,8 @@ func sane(s string) bool {
 }
 
 // Parse parses a mutation string and returns the NQuad representation for it.
-func Parse(line string) (api.NQuad, error) {
-	var rnq api.NQuad
+func Parse(line string) (intern.NQuad, error) {
+	var rnq intern.NQuad
 	l := lex.Lexer{
 		Input: line,
 	}
@@ -99,7 +99,7 @@ L:
 			} else if rnq.Predicate == "" {
 				rnq.Predicate = x.Star
 			} else {
-				rnq.ObjectValue = &api.Value{&api.Value_DefaultVal{x.Star}}
+				rnq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{x.Star}}
 			}
 		case itemLiteral:
 			var err error
@@ -117,7 +117,7 @@ L:
 			// if lang tag is specified then type is set to string
 			// grammar allows either ^^ iriref or lang tag
 			if len(oval) > 0 {
-				rnq.ObjectValue = &api.Value{&api.Value_DefaultVal{oval}}
+				rnq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{oval}}
 				oval = ""
 			}
 		case itemObjectType:
@@ -194,7 +194,7 @@ L:
 		return rnq, ErrEmpty
 	}
 	if len(oval) > 0 {
-		rnq.ObjectValue = &api.Value{&api.Value_DefaultVal{oval}}
+		rnq.ObjectValue = &intern.Value{&intern.Value_DefaultVal{oval}}
 	}
 	if len(rnq.Subject) == 0 || len(rnq.Predicate) == 0 {
 		return rnq, x.Errorf("Empty required fields in NQuad. Input: [%s]", line)
@@ -211,8 +211,8 @@ L:
 }
 
 // ConvertToNQuads parses multi line mutation string to a list of NQuads.
-func ConvertToNQuads(mutation string) ([]*api.NQuad, error) {
-	var nquads []*api.NQuad
+func ConvertToNQuads(mutation string) ([]*intern.NQuad, error) {
+	var nquads []*intern.NQuad
 	r := strings.NewReader(mutation)
 	reader := bufio.NewReader(r)
 
@@ -245,7 +245,7 @@ func ConvertToNQuads(mutation string) ([]*api.NQuad, error) {
 	return nquads, nil
 }
 
-func parseFacets(it *lex.ItemIterator, rnq *api.NQuad) error {
+func parseFacets(it *lex.ItemIterator, rnq *intern.NQuad) error {
 	if !it.Next() {
 		return x.Errorf("Unexpected end of facets.")
 	}

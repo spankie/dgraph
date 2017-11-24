@@ -352,7 +352,7 @@ func alreadySeen(parentIds []uint64, uid uint64) bool {
 	return false
 }
 
-func facetName(fieldName string, f *api.Facet) string {
+func facetName(fieldName string, f *intern.Facet) string {
 	if f.Alias != "" {
 		return f.Alias
 	}
@@ -541,7 +541,7 @@ func (sg *SubGraph) preTraverse(uid uint64, dst outputNode) error {
 }
 
 // convert from task.Val to types.Value, based on schema appropriate type
-// is already set in api.Value
+// is already set in intern.Value
 func convertWithBestEffort(tv *intern.TaskValue, attr string) (types.Val, error) {
 	// value would be in binary format with appropriate type
 	v, _ := getValue(tv)

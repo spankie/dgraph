@@ -34,7 +34,6 @@ import (
 
 	"github.com/dgraph-io/dgraph/algo"
 	"github.com/dgraph-io/dgraph/bp128"
-	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/schema"
 	"github.com/dgraph-io/dgraph/types"
@@ -1046,7 +1045,7 @@ func (l *List) findPosting(readTs uint64, uid uint64) (found bool, pos *intern.P
 }
 
 // Facets gives facets for the posting representing value.
-func (l *List) Facets(readTs uint64, param *intern.FacetParams, langs []string) (fs []*api.Facet,
+func (l *List) Facets(readTs uint64, param *intern.FacetParams, langs []string) (fs []*intern.Facet,
 	ferr error) {
 	l.RLock()
 	defer l.RUnlock()

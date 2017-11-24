@@ -97,7 +97,7 @@ func verifyUid(uid uint64) error {
 	return nil
 }
 
-func AssignUids(ctx context.Context, nquads []*api.NQuad) (map[string]uint64, error) {
+func AssignUids(ctx context.Context, nquads []*intern.NQuad) (map[string]uint64, error) {
 	newUids := make(map[string]uint64)
 	num := &intern.Num{}
 	var err error
@@ -154,13 +154,13 @@ func AssignUids(ctx context.Context, nquads []*api.NQuad) (map[string]uint64, er
 	return newUids, nil
 }
 
-func ToInternal(gmu *gql.Mutation,
+func ToInternal(set, del []*intern.NQuad,
 	newUids map[string]uint64) (edges []*intern.DirectedEdge, err error) {
 
 	// Wrapper for a pointer to protos.Nquad
 	var wnq *gql.NQuad
 
-	parse := func(nq *api.NQuad, op intern.DirectedEdge_Op) error {
+	parse := func(nq *intern.NQuad, op intern.DirectedEdge_Op) error {
 		wnq = &gql.NQuad{nq}
 		if len(nq.Subject) == 0 {
 			return nil
@@ -176,7 +176,7 @@ func ToInternal(gmu *gql.Mutation,
 		return nil
 	}
 
-	for _, nq := range gmu.Set {
+	for _, nq := range set {
 		if err := facets.SortAndValidate(nq.Facets); err != nil {
 			return edges, err
 		}
@@ -184,7 +184,7 @@ func ToInternal(gmu *gql.Mutation,
 			return edges, err
 		}
 	}
-	for _, nq := range gmu.Del {
+	for _, nq := range del {
 		if nq.Subject == x.Star && nq.ObjectValue.GetDefaultVal() == x.Star {
 			return edges, errors.New("Predicate deletion should be called via alter.")
 		}

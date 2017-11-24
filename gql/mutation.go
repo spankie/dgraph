@@ -21,7 +21,6 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/types"
 	"github.com/dgraph-io/dgraph/x"
@@ -33,8 +32,8 @@ var (
 
 // Mutation stores the strings corresponding to set and delete operations.
 type Mutation struct {
-	Set     []*api.NQuad
-	Del     []*api.NQuad
+	Set     []*intern.NQuad
+	Del     []*intern.NQuad
 	DropAll bool
 	Schema  string
 }
@@ -59,31 +58,31 @@ func ParseUid(xid string) (uint64, error) {
 }
 
 type NQuad struct {
-	*api.NQuad
+	*intern.NQuad
 }
 
-func typeValFrom(val *api.Value) types.Val {
+func typeValFrom(val *intern.Value) types.Val {
 	switch val.Val.(type) {
-	case *api.Value_BytesVal:
+	case *intern.Value_BytesVal:
 		return types.Val{types.BinaryID, val.GetBytesVal()}
-	case *api.Value_IntVal:
+	case *intern.Value_IntVal:
 		return types.Val{types.IntID, val.GetIntVal()}
-	case *api.Value_StrVal:
+	case *intern.Value_StrVal:
 		if val.GetStrVal() == "" {
 			return types.Val{types.StringID, "_nil_"}
 		}
 		return types.Val{types.StringID, val.GetStrVal()}
-	case *api.Value_BoolVal:
+	case *intern.Value_BoolVal:
 		return types.Val{types.BoolID, val.GetBoolVal()}
-	case *api.Value_DoubleVal:
+	case *intern.Value_DoubleVal:
 		return types.Val{types.FloatID, val.GetDoubleVal()}
-	case *api.Value_GeoVal:
+	case *intern.Value_GeoVal:
 		return types.Val{types.GeoID, val.GetGeoVal()}
-	case *api.Value_DatetimeVal:
+	case *intern.Value_DatetimeVal:
 		return types.Val{types.DateTimeID, val.GetDatetimeVal()}
-	case *api.Value_PasswordVal:
+	case *intern.Value_PasswordVal:
 		return types.Val{types.PasswordID, val.GetPasswordVal()}
-	case *api.Value_DefaultVal:
+	case *intern.Value_DefaultVal:
 		if val.GetDefaultVal() == "" {
 			return types.Val{types.DefaultID, "_nil_"}
 		}

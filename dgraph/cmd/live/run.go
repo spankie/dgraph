@@ -155,7 +155,7 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 	defer f.Close()
 
 	var line uint64
-	mu := api.Mutation{}
+	var nqs bytes.Buffer
 	var batchSize int
 	for {
 		select {
@@ -190,21 +190,58 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 				return err
 			}
 		}
-		mu.Set = append(mu.Set, &nq)
+		writeNQuad(&nqs, &nq)
 
 		if batchSize >= opt.numRdf {
+			mu := api.Mutation{SetNquads: nqs.Bytes()}
 			l.reqs <- mu
 			atomic.AddUint64(&l.rdfs, uint64(batchSize))
 			batchSize = 0
-			mu = api.Mutation{}
 		}
 	}
 	if batchSize > 0 {
+		mu := api.Mutation{SetNquads: nqs.Bytes()}
 		l.reqs <- mu
 		atomic.AddUint64(&l.rdfs, uint64(batchSize))
-		mu = api.Mutation{}
 	}
 	return nil
+}
+
+func writeNQuad(buf *bytes.Buffer, nq *intern.NQuad) {
+	// TODO
+
+	//buf.WriteRun('<')
+	//buf.WriteString(nq.Subject)
+	//buf.WriteString("> <")
+	//buf.WriteString(nq.Predicate)
+	//buf.WriteString("> ")
+
+	//x.AssertTrue((nq.ObjectId == "") != (nq.ObjectValue == nil))
+	//if nq.ObjectId != "" {
+	//	buf.WriteRune('<')
+	//	buf.WriteString(nq.ObjectId)
+	//	buf.WriteString("> .\n")
+	//	return
+	//}
+
+	//switch o := nq.ObjectValue.Val.(type) {
+	//case *intern.Value_DefaultVal:
+	//	buf.WriteString(strconv.Quote(o.DefaultVal))
+	//case *intern.Value_BytesVal:
+	//case *intern.Value_IntVal:
+	//case *intern.Value_BoolVal:
+	//case *intern.Value_StrVal:
+	//	buf.WriteString(strconv.Quote(o.StrVal))
+	//case *intern.Value_DoubleVal:
+	//case *intern.Value_GeoVal:
+	//case *intern.Value_DateVal:
+	//case *intern.Value_DatetimeVal:
+	//case *intern.Value_PasswordVal:
+	//case *intern.Value_UidVal:
+	//default:
+	//	x.AssertTruef(false, "unhandled object value type")
+	//}
+
 }
 
 func setupConnection(host string, insecure bool) (*grpc.ClientConn, error) {

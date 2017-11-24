@@ -17,7 +17,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 
@@ -84,12 +86,9 @@ func (d *Dgraph) anyClient() api.DgraphClient {
 // This helper function doesn't run the mutation on the server. It must be done by the user
 // after the function returns.
 func DeleteEdges(mu *api.Mutation, uid string, predicates ...string) {
+	var buf bytes.Buffer
 	for _, predicate := range predicates {
-		mu.Del = append(mu.Del, &api.NQuad{
-			Subject:   uid,
-			Predicate: predicate,
-			// _STAR_ALL is defined as x.Star in x package.
-			ObjectValue: &api.Value{&api.Value_DefaultVal{"_STAR_ALL"}},
-		})
+		fmt.Fprintf(&buf, "<%s> <%s> * .\n", uid, predicate)
 	}
+	mu.DelNquads = buf.Bytes()
 }

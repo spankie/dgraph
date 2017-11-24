@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dgraph-io/dgraph/gql"
-	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/types"
 	"github.com/dgraph-io/dgraph/types/facets"
@@ -145,10 +144,10 @@ func TestExport(t *testing.T) {
 		if nq.ObjectValue != nil {
 			switch nq.Subject {
 			case "_:uid1", "_:uid2":
-				require.Equal(t, &api.Value{&api.Value_DefaultVal{"pho\ton"}},
+				require.Equal(t, &intern.Value{&intern.Value_DefaultVal{"pho\ton"}},
 					nq.ObjectValue)
 			case "_:uid3":
-				require.Equal(t, &api.Value{&api.Value_DefaultVal{"First Line\nSecondLine"}},
+				require.Equal(t, &intern.Value{&intern.Value_DefaultVal{"First Line\nSecondLine"}},
 					nq.ObjectValue)
 			case "_:uid4":
 			case "_:uid5":
@@ -159,7 +158,7 @@ func TestExport(t *testing.T) {
 				t.Errorf("Unexpected subject: %v", nq.Subject)
 			}
 			if nq.Subject == "_:uid1" || nq.Subject == "_:uid2" {
-				require.Equal(t, &api.Value{&api.Value_DefaultVal{"pho\ton"}},
+				require.Equal(t, &intern.Value{&intern.Value_DefaultVal{"pho\ton"}},
 					nq.ObjectValue)
 			}
 		}
@@ -236,7 +235,7 @@ func TestExport(t *testing.T) {
 // 	byteInt := make([]byte, 4)
 // 	binary.LittleEndian.PutUint32(byteInt, 123)
 //
-// 	fac := []*api.Facet{
+// 	fac := []*intern.Facet{
 // 		{
 // 			Key:   "facetTest",
 // 			Value: []byte("testVal"),

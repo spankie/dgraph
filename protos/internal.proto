@@ -173,7 +173,7 @@ message DirectedEdge {
 		DEL = 1;
 	}
 	Op op = 8;
-	repeated api.Facet facets = 9;
+	repeated Facet facets = 9;
 }
 
 message Mutations {
@@ -240,7 +240,7 @@ message Posting {
 	PostingType posting_type = 4;
 	bytes lang_tag = 5; // Only set for VALUE_LANG
 	string label = 6;
-	repeated api.Facet facets = 9;
+	repeated Facet facets = 9;
 
 	// TODO: op is only used temporarily. See if we can remove it from here.
 	uint32 op = 12;
@@ -255,6 +255,22 @@ message PostingList {
 	bytes uids = 4; // Encoded list of uids in this posting list.
 }
 
+message Facet {
+	enum ValType {
+		STRING = 0;
+		INT = 1;
+		FLOAT = 2;
+		BOOL = 3;
+		DATETIME = 4;
+	}
+
+	string key = 1;
+	bytes value = 2;
+	ValType val_type = 3;
+	repeated string tokens = 4; // tokens of value.
+	string alias = 5; // not stored, only used for query.
+}
+
 message FacetParam {
 	string key = 1;
 	string alias = 2;
@@ -266,7 +282,7 @@ message FacetParams {
 }
 
 message Facets {
-	repeated api.Facet facets = 1;
+	repeated Facet facets = 1;
 }
 
 message FacetsList {
@@ -391,6 +407,32 @@ service Worker {
 
 message Num {
 	uint64 val = 1;
+}
+
+message NQuad {
+	string subject = 1;
+	string predicate = 2;
+	string object_id = 3;
+	Value object_value = 4;
+	string label = 5;
+	string lang = 6;
+	repeated Facet facets = 7;
+}
+
+message Value {
+	oneof val {
+		string default_val = 1;
+		bytes bytes_val = 2;
+		int64 int_val = 3;
+		bool bool_val = 4;
+		string str_val = 5;
+		double double_val = 6;
+		bytes geo_val = 7;  // Geo data in WKB format
+		bytes date_val = 8;
+		bytes datetime_val = 9;
+		string password_val = 10;
+		uint64 uid_val=11;
+	}
 }
 
 // vim: noexpandtab sw=2 ts=2
