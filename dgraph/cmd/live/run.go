@@ -180,7 +180,6 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 			return fmt.Errorf("Error while parsing RDF: %v, on line:%v %v", err, line, buf.String())
 		}
 		batchSize++
-		buf.Reset()
 
 		if nq.Subject, err = l.uid(nq.Subject); err != nil {
 			return err
@@ -191,6 +190,7 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 			}
 		}
 		writeNQuad(&nqs, &nq)
+		buf.Reset()
 
 		if batchSize >= opt.numRdf {
 			mu := api.Mutation{SetNquads: nqs.Bytes()}
@@ -208,8 +208,6 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 }
 
 func writeNQuad(buf *bytes.Buffer, nq *intern.NQuad) {
-	// TODO
-
 	//buf.WriteRun('<')
 	//buf.WriteString(nq.Subject)
 	//buf.WriteString("> <")
@@ -218,26 +216,39 @@ func writeNQuad(buf *bytes.Buffer, nq *intern.NQuad) {
 
 	//x.AssertTrue((nq.ObjectId == "") != (nq.ObjectValue == nil))
 	//if nq.ObjectId != "" {
-	//	buf.WriteRune('<')
-	//	buf.WriteString(nq.ObjectId)
-	//	buf.WriteString("> .\n")
-	//	return
+	//buf.WriteRune('<')
+	//buf.WriteString(nq.ObjectId)
+	//buf.WriteString("> .\n")
+	//return
 	//}
+
+	//types.Convert(
 
 	//switch o := nq.ObjectValue.Val.(type) {
 	//case *intern.Value_DefaultVal:
-	//	buf.WriteString(strconv.Quote(o.DefaultVal))
+	//	fmt.Fprintf(buf, `%q`, o.DefaultVal)
 	//case *intern.Value_BytesVal:
+	//	// TODO: Used?
 	//case *intern.Value_IntVal:
+	//	fmt.Fprintf(buf, `"%d"^^<xs:int>"`, o.IntVal)
 	//case *intern.Value_BoolVal:
+	//	fmt.Fprintf(buf, `"%t"^^<xs:bool>"`, o.BoolVal)
 	//case *intern.Value_StrVal:
-	//	buf.WriteString(strconv.Quote(o.StrVal))
+	//	fmt.Fprintf(buf, `%q^^<xs:string>`)
 	//case *intern.Value_DoubleVal:
+	//	buf.WriteRune('"')
+	//	buf.WriteString(strconv.FormatFloat(o.DoubleVal, 'f', -1))
+	//	buf.WriteString(`"^^<xs:float>`)
 	//case *intern.Value_GeoVal:
+	//	fmt.Fprintf(buf, `%q^^<geo:geojson>`, string(o.GeoVal))
 	//case *intern.Value_DateVal:
+	//	fmt.Fprintf(buf, `%q^^<xs:date>`, string(o.DateVal))
 	//case *intern.Value_DatetimeVal:
-	//case *intern.Value_PasswordVal:
+	//	fmt.Fprintf(buf, `%q^^<xs:dateTime>`, string(o.DatetimeVal))
 	//case *intern.Value_UidVal:
+	//	x.AssertTruef(false, "uid in value from parsed rdf")
+	//case *intern.Value_PasswordVal:
+	//	x.AssertTruef(false, "password in value from parsed rdf")
 	//default:
 	//	x.AssertTruef(false, "unhandled object value type")
 	//}
