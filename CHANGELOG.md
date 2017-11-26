@@ -21,6 +21,10 @@ and this project will adhere to [Semantic Versioning](http://semver.org/spec/v2.
 
 * When showing a predicate with list type, only values without a language tag are shown. To get the values of the predicate that are tagged with a language, query the predicate with that language explicitly.
 
+### Removed
+
+* Automatic XID edge generation for the bulk loader (to match feature parity with the live loader).
+
 ## [0.9.2] - 2017-11-20
 
 ### Added
