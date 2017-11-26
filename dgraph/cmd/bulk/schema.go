@@ -47,13 +47,6 @@ func newSchemaStore(initial []*intern.SchemaUpdate, opt options, state *state) *
 		},
 		state: state,
 	}
-	if opt.StoreXids {
-		s.m["xid"] = &intern.SchemaUpdate{
-			ValueType: intern.Posting_STRING,
-			Tokenizer: []string{"hash"},
-			Explicit:  true,
-		}
-	}
 	for _, sch := range initial {
 		p := sch.Predicate
 		sch.Predicate = "" // Predicate is stored in the (badger) key, so not needed in the value.

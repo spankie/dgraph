@@ -73,7 +73,6 @@ func init() {
 			"cluster. Increasing this potentially decreases the reduce stage runtime by using "+
 			"more parallelism, but increases memory usage.")
 	flag.BoolVar(&opt.Version, "version", false, "Prints the version of dgraph-bulk-loader.")
-	flag.BoolVarP(&opt.StoreXids, "store_xids", "x", false, "Generate an xid edge for each node.")
 	flag.StringVarP(&opt.ZeroAddr, "zero_addr", "z", "localhost:8888", "gRPC address for dgraphzero")
 }
 

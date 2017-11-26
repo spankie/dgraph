@@ -53,7 +53,6 @@ type options struct {
 	CleanupTmp    bool
 	NumShufflers  int
 	Version       bool
-	StoreXids     bool
 	ZeroAddr      string
 	HttpAddr      string
 

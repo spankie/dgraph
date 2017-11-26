@@ -33,7 +33,6 @@ import (
 
 	"github.com/dgraph-io/dgraph/gql"
 	"github.com/dgraph-io/dgraph/posting"
-	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/protos/intern"
 	"github.com/dgraph-io/dgraph/rdf"
 	"github.com/dgraph-io/dgraph/tok"
@@ -184,11 +183,13 @@ func (m *mapper) parseRDF(rdfLine string) error {
 }
 
 func (m *mapper) processNQuad(nq gql.NQuad) {
-	sid := m.lookupUid(nq.GetSubject())
+	sid, _, err := m.xids.AssignUid(nq.GetSubject())
+	x.Check(err)
 	var oid uint64
 	var de *intern.DirectedEdge
 	if nq.GetObjectValue() == nil {
-		oid = m.lookupUid(nq.GetObjectId())
+		oid, _, err := m.xids.AssignUid(nq.GetObjectId())
+		x.Check(err)
 		de = nq.CreateUidEdge(sid, oid)
 	} else {
 		var err error
@@ -213,27 +214,6 @@ func (m *mapper) processNQuad(nq gql.NQuad) {
 	}
 
 	m.addIndexMapEntries(nq, de)
-}
-
-func (m *mapper) lookupUid(xid string) uint64 {
-	uid, isNew, err := m.xids.AssignUid(xid)
-	x.Check(err)
-	if !isNew || !m.opt.StoreXids {
-		return uid
-	}
-	if strings.HasPrefix(xid, "_:") {
-		// Don't store xids for blank nodes.
-		return uid
-	}
-	nq := gql.NQuad{&api.NQuad{
-		Subject:   xid,
-		Predicate: "xid",
-		ObjectValue: &api.Value{
-			Val: &api.Value_StrVal{StrVal: xid},
-		},
-	}}
-	m.processNQuad(nq)
-	return uid
 }
 
 func parseNQuad(line string) (gql.NQuad, error) {
