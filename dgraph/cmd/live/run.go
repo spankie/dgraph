@@ -235,30 +235,24 @@ func (l *loader) processFile(ctx context.Context, file string) error {
 }
 
 func setupConnection(host string, insecure bool) (*grpc.ClientConn, error) {
-	if insecure {
-		return grpc.Dial(host,
-			grpc.WithDefaultCallOptions(
-				grpc.MaxCallRecvMsgSize(x.GrpcMaxSize),
-				grpc.MaxCallSendMsgSize(x.GrpcMaxSize)),
-			grpc.WithInsecure(),
-			grpc.WithBlock(),
-			grpc.WithTimeout(10*time.Second))
+	tlsDialOpt := grpc.WithInsecure()
+	if !insecure {
+		tlsConf.ConfigType = x.TLSClientConfig
+		tlsConf.CertRequired = false
+		tlsCfg, _, err := x.GenerateTLSConfig(tlsConf)
+		if err != nil {
+			return nil, err
+		}
+		tlsDialOpt = grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))
 	}
-
-	tlsConf.ConfigType = x.TLSClientConfig
-	tlsConf.CertRequired = false
-	tlsCfg, _, err := x.GenerateTLSConfig(tlsConf)
-	if err != nil {
-		return nil, err
-	}
-
 	return grpc.Dial(host,
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(x.GrpcMaxSize),
 			grpc.MaxCallSendMsgSize(x.GrpcMaxSize)),
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
 		grpc.WithBlock(),
-		grpc.WithTimeout(10*time.Second))
+		grpc.WithTimeout(30*time.Second),
+		tlsDialOpt,
+	)
 }
 
 func fileList(files string) []string {
