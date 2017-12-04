@@ -368,3 +368,14 @@ func TestParseUnderscore(t *testing.T) {
 	_, err := Parse("_share_:string @index(term) .")
 	require.NoError(t, err)
 }
+
+func TestParseUnaryDirective(t *testing.T) {
+	reset()
+	// TODO - Also parse unaryr and throw error if @reverse not present.
+	su, err := Parse(`
+		teacher : uid @unaryf .
+	`)
+	require.NoError(t, err)
+	require.Equal(t, "teacher", su[0].Predicate)
+	require.Equal(t, true, su[0].Unaryf)
+}

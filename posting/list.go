@@ -76,7 +76,7 @@ type List struct {
 	commitTs      uint64            // last commitTs of this pl
 	activeTxns    map[uint64]struct{}
 	deleteMe      int32 // Using atomic for this, to avoid expensive SetForDeletion operation.
-	markdeleteAll uint64
+	markDeleteAll uint64
 	estimatedSize int32
 	numCommits    int
 }
@@ -248,7 +248,7 @@ func (l *List) updateMutationLayer(startTs uint64, mpost *intern.Posting) bool {
 	l.AssertLock()
 	x.AssertTrue(mpost.Op == Set || mpost.Op == Del)
 	if mpost.Op == Del && bytes.Equal(mpost.Value, []byte(x.Star)) {
-		l.markdeleteAll = startTs
+		l.markDeleteAll = startTs
 		// Remove all mutations done in same transaction.
 		midx := 0
 		for _, mpost := range l.mlayer {
@@ -349,8 +349,9 @@ func (l *List) addMutation(ctx context.Context, txn *Txn, t *intern.DirectedEdge
 	if txn.ShouldAbort() {
 		return false, y.ErrConflict
 	}
-	// We can have atmax one pending <s> <p> * mutation.
-	hasPendingDelete := l.markdeleteAll > 0 && t.Op == intern.DirectedEdge_DEL &&
+
+	// We can have at max one pending <s> <p> * mutation.
+	hasPendingDelete := l.markDeleteAll > 0 && t.Op == intern.DirectedEdge_DEL &&
 		bytes.Equal(t.Value, []byte(x.Star))
 
 	doAbort := hasPendingDelete || txn.StartTs < l.commitTs
@@ -466,10 +467,10 @@ func (l *List) commitMutation(ctx context.Context, startTs, commitTs uint64) err
 		// It was already committed, might be happening due to replay.
 		return nil
 	}
-	if l.markdeleteAll > 0 {
+	if l.markDeleteAll > 0 {
 		l.deleteHelper(ctx)
 		l.minTs = commitTs
-		l.markdeleteAll = 0
+		l.markDeleteAll = 0
 	} else {
 		for _, mpost := range l.mlayer {
 			if mpost.StartTs == startTs {
@@ -498,7 +499,7 @@ func (l *List) deleteHelper(ctx context.Context) error {
 	l.plist = emptyList
 	midx := 0
 	for _, mpost := range l.mlayer {
-		if mpost.StartTs >= l.markdeleteAll {
+		if mpost.StartTs >= l.markDeleteAll {
 			l.mlayer[midx] = mpost
 			midx++
 		}
@@ -554,14 +555,14 @@ func (l *List) iterate(readTs uint64, afterUid uint64, f func(obj *intern.Postin
 	l.AssertRLock()
 	midx := 0
 	var deleteTs uint64
-	if l.markdeleteAll == 0 {
-	} else if l.markdeleteAll == readTs {
+	if l.markDeleteAll == 0 {
+	} else if l.markDeleteAll == readTs {
 		// Check if there is uncommitted sp* at current readTs.
 		return nil
-	} else if l.markdeleteAll < readTs {
+	} else if l.markDeleteAll < readTs {
 		// Ignore all reads before this.
 		// Fixing the pl is difficult with locks.
-		deleteTs = Oracle().CommitTs(l.markdeleteAll)
+		deleteTs = Oracle().CommitTs(l.markDeleteAll)
 	}
 	if readTs < l.minTs {
 		return x.Errorf("readTs: %d less than minTs: %d for key: %q", readTs, l.minTs, l.key)
