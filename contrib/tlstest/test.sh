@@ -20,7 +20,7 @@ sleep 5
 
 
 $SERVER > /dev/null 2>&1 &
-timeout 30s $CLIENT > client.log 2>&1
+timeout 60s $CLIENT > client.log 2>&1
 RESULT=$?
 # echo -e "Result $RESULT"
 

@@ -16,7 +16,7 @@ sleep 5
 # start the server
 $SERVER > /dev/null 2>&1 &
 P=$!
-timeout 30s $CLIENT > /dev/null 2>&1
+timeout 60s $CLIENT > /dev/null 2>&1
 RESULT=$?
 
 # reload server certificate
@@ -25,7 +25,7 @@ cp server3.key server_reload.key
 pkill -HUP dgraph > /dev/null 2>&1
 
 # try to connect again
-timeout 30s $CLIENT > /dev/null 2>&1
+timeout 60s $CLIENT > /dev/null 2>&1
 RESULT=$?
 
 if [ $RESULT == $EXPECTED ]; then
