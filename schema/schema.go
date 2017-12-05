@@ -203,6 +203,16 @@ func (s *state) HasCount(pred string) bool {
 	return false
 }
 
+// IsUnaryForward returns whether the predicate has @unaryf directive.
+func (s *state) IsUnaryForward(pred string) bool {
+	s.RLock()
+	defer s.RUnlock()
+	if schema, ok := s.predicate[pred]; ok {
+		return schema.Unaryf
+	}
+	return false
+}
+
 // IsList returns whether the predicate is of list type.
 func (s *state) IsList(pred string) bool {
 	s.RLock()

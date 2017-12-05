@@ -244,10 +244,10 @@ func (l *List) SetForDeletion() bool {
 }
 
 // Ensure that you either abort the uncomitted postings or commit them before calling me.
-func (l *List) updateMutationLayer(startTs uint64, mpost *intern.Posting) bool {
+func (l *List) updateMutationLayer(startTs uint64, mpost *intern.Posting, unary bool) bool {
 	l.AssertLock()
 	x.AssertTrue(mpost.Op == Set || mpost.Op == Del)
-	if mpost.Op == Del && bytes.Equal(mpost.Value, []byte(x.Star)) {
+	if (mpost.Op == Del && bytes.Equal(mpost.Value, []byte(x.Star))) || unary {
 		l.markDeleteAll = startTs
 		// Remove all mutations done in same transaction.
 		midx := 0
@@ -258,7 +258,9 @@ func (l *List) updateMutationLayer(startTs uint64, mpost *intern.Posting) bool {
 			}
 		}
 		l.mlayer = l.mlayer[:midx]
-		return true
+		if mpost.Op == Del {
+			return true
+		}
 	}
 
 	// Check the mutable layer.
@@ -401,7 +403,8 @@ func (l *List) addMutation(ctx context.Context, txn *Txn, t *intern.DirectedEdge
 	mpost := NewPosting(t)
 	mpost.StartTs = txn.StartTs
 	t1 := time.Now()
-	hasMutated := l.updateMutationLayer(txn.StartTs, mpost)
+	unary := schema.State().IsUnaryForward(t.Attr)
+	hasMutated := l.updateMutationLayer(txn.StartTs, mpost, unary)
 	atomic.AddInt32(&l.estimatedSize, int32(mpost.Size()+16 /* various overhead */))
 	if dur := time.Since(t1); dur > time.Millisecond {
 		if tr, ok := trace.FromContext(ctx); ok {
