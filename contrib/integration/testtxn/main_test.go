@@ -14,6 +14,7 @@ import (
 	"github.com/dgraph-io/dgraph/client"
 	"github.com/dgraph-io/dgraph/protos/api"
 	"github.com/dgraph-io/dgraph/x"
+	"github.com/dgraph-io/dgraph/y"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
@@ -511,17 +512,6 @@ func TestUnary(t *testing.T) {
 	require.Equal(t, 2, len(assigned.Uids))
 
 	uid1 := assigned.Uids["blank-0"]
-	uid2 := assigned.Uids["blank-1"]
-	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan2"}]}`, uid1))
-	assigned, err = txn.Mutate(context.Background(), mu)
-	require.NoError(t, err)
-	// This new friend should replace the old friend.
-	uid3 := assigned.Uids["blank-0"]
-	require.True(t, uid2 != uid3)
-
-	require.NoError(t, txn.Commit(context.Background()))
-
-	txn = s.dg.NewTxn()
 	q := fmt.Sprintf(`{
 		me(func: uid(%s)) {
 			uid
@@ -531,8 +521,135 @@ func TestUnary(t *testing.T) {
 			}
 		}
 	}`, uid1)
+
+	uid2 := assigned.Uids["blank-1"]
 	resp, err := txn.Query(context.Background(), q)
 	require.NoError(t, err)
-	expectedResp := fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid3)
+	expectedResp := fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan", "uid":"%s"}]}]}`, uid1, uid2)
+	require.JSONEq(t, expectedResp, string(resp.Json))
+
+	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan2"}]}`, uid1))
+	assigned, err = txn.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	// This new friend should replace the old friend.
+	uid3 := assigned.Uids["blank-0"]
+	require.True(t, uid2 != uid3)
+
+	resp, err = txn.Query(context.Background(), q)
+	require.NoError(t, err)
+	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid3)
+	require.JSONEq(t, expectedResp, string(resp.Json))
+
+	require.NoError(t, txn.Commit(context.Background()))
+
+	txn = s.dg.NewTxn()
+	resp, err = txn.Query(context.Background(), q)
+	require.NoError(t, err)
+	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid3)
+	require.JSONEq(t, expectedResp, string(resp.Json))
+}
+
+func TestUnaryConflict(t *testing.T) {
+	op := &api.Operation{}
+	op.DropAll = true
+	require.NoError(t, s.dg.Alter(context.Background(), op))
+
+	op = &api.Operation{}
+	op.Schema = `friend: uid @unaryf .`
+	require.NoError(t, s.dg.Alter(context.Background(), op))
+
+	txn := s.dg.NewTxn()
+	mu := &api.Mutation{}
+	mu.SetJson = []byte(`{"name": "Manish", "friend": [{"name": "Jan"}]}`)
+	assigned, err := txn.Mutate(context.Background(), mu)
+	uid1 := assigned.Uids["blank-0"]
+	require.NoError(t, err)
+	require.Equal(t, 2, len(assigned.Uids))
+	require.NoError(t, txn.Commit(context.Background()))
+
+	txn2 := s.dg.NewTxn()
+	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan2"}]}`, uid1))
+	assigned, err = txn2.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(assigned.Uids))
+	uid2 := assigned.Uids["blank-0"]
+	fmt.Println("uid2", uid2)
+
+	txn3 := s.dg.NewTxn()
+	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan3"}]}`, uid1))
+	assigned, err = txn3.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(assigned.Uids))
+	fmt.Println("uid3", assigned.Uids)
+
+	require.NoError(t, txn2.Commit(context.Background()))
+	err = txn3.Commit(context.Background())
+	require.Error(t, err)
+	require.Equal(t, y.ErrAborted, err)
+
+	q := fmt.Sprintf(`{
+		me(func: uid(%s)) {
+			uid
+			friend {
+				uid
+				name
+			}
+		}
+	}`, uid1)
+
+	txn = s.dg.NewTxn()
+	resp, err := txn.Query(context.Background(), q)
+	require.NoError(t, err)
+	expectedResp := fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid2)
+	fmt.Println(string(resp.Json))
+	require.JSONEq(t, expectedResp, string(resp.Json))
+}
+
+func TestSPStar(t *testing.T) {
+	op := &api.Operation{}
+	op.DropAll = true
+	require.NoError(t, s.dg.Alter(context.Background(), op))
+
+	op = &api.Operation{}
+	op.Schema = `friend: uid .`
+	require.NoError(t, s.dg.Alter(context.Background(), op))
+
+	txn := s.dg.NewTxn()
+	mu := &api.Mutation{}
+	mu.SetJson = []byte(`{"name": "Manish", "friend": [{"name": "Jan"}]}`)
+	assigned, err := txn.Mutate(context.Background(), mu)
+	uid1 := assigned.Uids["blank-0"]
+	require.NoError(t, err)
+	require.Equal(t, 2, len(assigned.Uids))
+	require.NoError(t, txn.Commit(context.Background()))
+
+	txn = s.dg.NewTxn()
+	mu = &api.Mutation{}
+	client.DeleteEdges(mu, uid1, "friend")
+	fmt.Println("calling deleteedges")
+	assigned, err = txn.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(assigned.Uids))
+
+	mu = &api.Mutation{}
+	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan2"}]}`, uid1))
+	assigned, err = txn.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(assigned.Uids))
+	uid2 := assigned.Uids["blank-0"]
+
+	q := fmt.Sprintf(`{
+		me(func: uid(%s)) {
+			uid
+			friend {
+				uid
+				name
+			}
+		}
+	}`, uid1)
+
+	resp, err := txn.Query(context.Background(), q)
+	require.NoError(t, err)
+	expectedResp := fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid2)
 	require.JSONEq(t, expectedResp, string(resp.Json))
 }
