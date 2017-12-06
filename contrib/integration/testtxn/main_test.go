@@ -510,6 +510,7 @@ func TestUnary(t *testing.T) {
 	assigned, err := txn.Mutate(context.Background(), mu)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(assigned.Uids))
+	require.NoError(t, txn.Commit(context.Background()))
 
 	uid1 := assigned.Uids["blank-0"]
 	q := fmt.Sprintf(`{
@@ -522,6 +523,7 @@ func TestUnary(t *testing.T) {
 		}
 	}`, uid1)
 
+	txn = s.dg.NewTxn()
 	uid2 := assigned.Uids["blank-1"]
 	resp, err := txn.Query(context.Background(), q)
 	require.NoError(t, err)
@@ -535,17 +537,29 @@ func TestUnary(t *testing.T) {
 	uid3 := assigned.Uids["blank-0"]
 	require.True(t, uid2 != uid3)
 
+	// Do another update as part of same transaction.
+	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan3"}]}`, uid1))
+	assigned, err = txn.Mutate(context.Background(), mu)
+	require.NoError(t, err)
+	// This new friend should replace the old friend.
+	uid3 = assigned.Uids["blank-0"]
+	require.True(t, uid2 != uid3)
+
 	resp, err = txn.Query(context.Background(), q)
 	require.NoError(t, err)
-	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid3)
+	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan3", "uid":"%s"}]}]}`, uid1, uid3)
 	require.JSONEq(t, expectedResp, string(resp.Json))
 
+	// Query before commit as part of new txn.
+	resp, err = s.dg.NewTxn().Query(context.Background(), q)
+	require.NoError(t, err)
+	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan", "uid":"%s"}]}]}`, uid1, uid2)
+	require.JSONEq(t, expectedResp, string(resp.Json))
 	require.NoError(t, txn.Commit(context.Background()))
 
-	txn = s.dg.NewTxn()
-	resp, err = txn.Query(context.Background(), q)
+	resp, err = s.dg.NewTxn().Query(context.Background(), q)
 	require.NoError(t, err)
-	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid3)
+	expectedResp = fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan3", "uid":"%s"}]}]}`, uid1, uid3)
 	require.JSONEq(t, expectedResp, string(resp.Json))
 }
 
