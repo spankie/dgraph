@@ -249,7 +249,6 @@ func (l *List) updateMutationLayer(startTs uint64, mpost *intern.Posting, unary 
 	x.AssertTrue(mpost.Op == Set || mpost.Op == Del)
 	deleteList := mpost.Op == Del && bytes.Equal(mpost.Value, []byte(x.Star))
 	if deleteList || unary {
-		fmt.Println("here", startTs)
 		l.markDeleteAll = startTs
 		// Remove all postings that are part of the same transaction(same startTs).
 		midx := 0
@@ -354,10 +353,9 @@ func (l *List) addMutation(ctx context.Context, txn *Txn, t *intern.DirectedEdge
 		return false, y.ErrConflict
 	}
 
-	// We can have at max one pending <s> <p> * mutation.
-	hasPendingDelete := l.markDeleteAll > 0 && t.Op == intern.DirectedEdge_DEL &&
-		bytes.Equal(t.Value, []byte(x.Star))
-
+	// markDeleteAll is > 0 when doing a <s> <p> * deletion or while performing a set on predicate
+	// of which has @unaryf directive..
+	hasPendingDelete := l.markDeleteAll > 0 && l.markDeleteAll != txn.StartTs
 	doAbort := hasPendingDelete || txn.StartTs < l.commitTs
 	ignoreConflict := false
 	if t.Attr == "_predicate_" {
@@ -473,7 +471,6 @@ func (l *List) commitMutation(ctx context.Context, startTs, commitTs uint64) err
 		return nil
 	}
 
-	fmt.Println("startTs", startTs, "commitTs", commitTs, "key", string(l.key))
 	if l.markDeleteAll > 0 {
 		l.deleteHelper(ctx, commitTs)
 		l.minTs = commitTs
@@ -486,7 +483,6 @@ func (l *List) commitMutation(ctx context.Context, startTs, commitTs uint64) err
 			}
 		}
 	}
-	fmt.Println("commitTs", commitTs, "l", l.commitTs)
 	if commitTs > l.commitTs {
 		l.commitTs = commitTs
 	}
@@ -507,7 +503,6 @@ func (l *List) deleteHelper(ctx context.Context, commitTs uint64) error {
 	l.plist = emptyList
 	midx := 0
 	for _, mpost := range l.mlayer {
-		fmt.Println(l.markDeleteAll, mpost.StartTs, mpost.Uid)
 		if mpost.StartTs == l.markDeleteAll {
 			atomic.StoreUint64(&mpost.CommitTs, commitTs)
 		}
@@ -557,7 +552,6 @@ func (l *List) inSnapshot(mpost *intern.Posting, readTs, deleteTs uint64) bool {
 		commitTs = Oracle().CommitTs(mpost.StartTs)
 		atomic.StoreUint64(&mpost.CommitTs, commitTs)
 	}
-	fmt.Printf("mpost: %+v, commit: %+v, read: %+v,delete: %+v\n", mpost, commitTs, readTs, deleteTs)
 	if commitTs == 0 {
 		return mpost.StartTs == readTs
 	}
@@ -568,7 +562,6 @@ func (l *List) iterate(readTs uint64, afterUid uint64, f func(obj *intern.Postin
 	l.AssertRLock()
 	midx := 0
 	var deleteTs uint64
-	fmt.Println(l.markDeleteAll, "readTs", readTs)
 	if l.markDeleteAll == 0 {
 	} else if l.markDeleteAll == readTs {
 		// So that we ignore reading any committed postings with commitTs < readTs.
@@ -597,7 +590,6 @@ func (l *List) iterate(readTs uint64, afterUid uint64, f func(obj *intern.Postin
 	for cont {
 		if midx < mlayerLen {
 			mp = l.mlayer[midx]
-			fmt.Printf("mp: %+v\n", mp)
 			if !l.inSnapshot(mp, readTs, deleteTs) {
 				midx++
 				continue

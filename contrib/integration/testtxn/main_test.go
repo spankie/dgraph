@@ -573,19 +573,15 @@ func TestUnaryConflict(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(assigned.Uids))
 	uid2 := assigned.Uids["blank-0"]
-	fmt.Println("uid2", uid2)
 
 	txn3 := s.dg.NewTxn()
 	mu.SetJson = []byte(fmt.Sprintf(`{"uid": "%s" ,"name": "Manish", "friend": [{"name": "Jan3"}]}`, uid1))
 	assigned, err = txn3.Mutate(context.Background(), mu)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(assigned.Uids))
-	fmt.Println("uid3", assigned.Uids)
-
-	require.NoError(t, txn2.Commit(context.Background()))
-	err = txn3.Commit(context.Background())
+	// This will conflict with uncommitted transaction txn2.
 	require.Error(t, err)
 	require.Equal(t, y.ErrAborted, err)
+
+	require.NoError(t, txn2.Commit(context.Background()))
 
 	q := fmt.Sprintf(`{
 		me(func: uid(%s)) {
@@ -601,7 +597,6 @@ func TestUnaryConflict(t *testing.T) {
 	resp, err := txn.Query(context.Background(), q)
 	require.NoError(t, err)
 	expectedResp := fmt.Sprintf(`{"me":[{"uid":"%s", "friend": [{"name": "Jan2", "uid":"%s"}]}]}`, uid1, uid2)
-	fmt.Println(string(resp.Json))
 	require.JSONEq(t, expectedResp, string(resp.Json))
 }
 
@@ -626,7 +621,6 @@ func TestSPStar(t *testing.T) {
 	txn = s.dg.NewTxn()
 	mu = &api.Mutation{}
 	client.DeleteEdges(mu, uid1, "friend")
-	fmt.Println("calling deleteedges")
 	assigned, err = txn.Mutate(context.Background(), mu)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(assigned.Uids))
